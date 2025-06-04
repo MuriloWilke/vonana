@@ -1,0 +1,70 @@
+{
+  "responseId": "some-initial-response-id",
+  "queryResult": {
+    "queryText": "I want 2 dozen eggs, pay with Pix",
+    "parameters": {
+      "dozens": 2,
+      "finalMethod": 1,
+      "whatsappClientId": "whatsapp:+15551234567"
+    },
+    "allRequiredParamsPresent": true,
+    "fulfillmentMessages": [],
+    "intent": {
+      "name": "projects/vonana-5e86c/agent/intents/...",
+      "displayName": "Order Intent"
+    },
+    "intentDetectionConfidence": 1.0,
+    "languageCode": "pt-br"
+  },
+  "originalDetectIntentRequest": {
+     "source": "whatsapp",
+     "payload": {
+        "sender": {
+            "id": "whatsapp:+15551234567",
+            "name": "Test User"
+        },
+        "text": "I want 2 dozen eggs, pay with Pix"
+     }
+  },
+  "session": "projects/vonana-5e86c/agent/sessions/dialogflow-test-session-12345"
+}
+
+{
+  "responseId": "some-address-response-id",
+  "queryResult": {
+    "queryText": "Meu endereço é Rua das Flores, 123, Centro, São Paulo",
+    "parameters": {
+      "newClientShippingAddress": "Rua das Flores, 123, Centro, São Paulo"
+    },
+    "allRequiredParamsPresent": true,
+    "fulfillmentMessages": [],
+    "outputContexts": [
+      {
+        "name": "projects/vonana-5e86c/agent/sessions/dialogflow-test-session-12345/contexts/awaiting_address_for_new_client",
+        "lifespanCount": 1,
+        "parameters": {
+          "whatsappClientId": "whatsapp:+15551234567",
+          "originalOrderDozens": 2,
+          "originalOrderMethod": 1
+        }
+      }
+    ],
+    "intent": {
+      "name": "projects/vonana-5e86c/agent/intents/...",
+      "displayName": "Capture New Client Address Intent"
+    },
+    "intentDetectionConfidence": 1.0,
+    "languageCode": "pt-br"
+  },
+  "originalDetectIntentRequest": {
+     "source": "whatsapp",
+     "payload": {
+        "sender": {
+            "id": "whatsapp:+15551234567",
+            "name": "Test User"
+        },
+        "text": "Meu endereço é Rua das Flores, 123, Centro, São Paulo"
+     }
+  },
+  "session": "projects/vonana-5e86c/agent/sessions/dialogflow-test-session-12345"
+}
