@@ -444,6 +444,40 @@ async function processOrderFlow(agent, whatsappClientId, orderParams) {
   const docRef = await createAndSaveOrder(db, newOrderDetails);
   console.log('Order saved successfully.');
 
+  const addressParts = [];
+
+  if (finalShippingAddressForOrder['business-name'] && finalShippingAddressForOrder['business-name'] !== '') {
+    addressParts.push(finalShippingAddressForOrder['business-name']);
+  }
+
+  if (finalShippingAddressForOrder['street-address'] && finalShippingAddressForOrder['street-address'] !== '') {
+    addressParts.push(finalShippingAddressForOrder['street-address']);
+  }
+
+  let cityEstate = '';
+  if (finalShippingAddressForOrder['city'] && finalShippingAddressForOrder['city'] !== '') {
+    cityEstate += finalShippingAddressForOrder['city'];
+  }
+  if (finalShippingAddressForOrder['admin-area'] && finalShippingAddressForOrder['admin-area'] !== '') {
+    if (cityEstate !== '') {
+      cityEstate += ' - ';
+    }
+    cityEstate += finalShippingAddressForOrder['admin-area'];
+  }
+  if (cityEstate !== '') {
+    addressParts.push(cityEstate);
+  }
+
+  if (finalShippingAddressForOrder['zip-code'] && finalShippingAddressForOrder['zip-code'] !== '') {
+    addressParts.push(`CEP ${finalShippingAddressForOrder['zip-code']}`);
+  }
+
+  if (finalShippingAddressForOrder['country'] && finalShippingAddressForOrder['country'] !== '') {
+    addressParts.push(finalShippingAddressForOrder['country']);
+  }
+
+  const formatedAddress = addressParts.join(', ');
+
   // Response
   let responseMessage = "Perfeito! Anotei seu pedido:\n";
   orderItems.forEach(item => {
@@ -456,7 +490,7 @@ async function processOrderFlow(agent, whatsappClientId, orderParams) {
   }
 
   responseMessage += `Total geral: ${finalValueFormatted}\n`;
-  responseMessage += `Para o endereço ${finalShippingAddressForOrder}.\n`;
+  responseMessage += `Para o endereço ${formatedAddress}.\n`;
 
   agent.add(responseMessage);
   agent.add(`O ID do seu pedido é ${docRef.id}. Se precisar de alguma ajuda, mande uma mensagem!`);
