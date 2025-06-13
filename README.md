@@ -67,7 +67,7 @@ This project is a complete ordering and delivery management system that integrat
 ### Backend
 
 ```
-backend/
+chatbot/
 │
 ├── firebase.json # Firestore configurations
 ├── Dockerfile # Instructions to the docker container
@@ -83,7 +83,7 @@ backend/
 ### Flutter Frontend
 
 ```
-frontend/
+app/
 │
 ├── lib/
 │ ├── models/ # Data models (Order, Client)
