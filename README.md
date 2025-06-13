@@ -66,6 +66,7 @@ This project is a complete ordering and delivery management system that integrat
 
 ### Backend
 
+```
 backend/
 │
 ├── firebase.json # Firestore configurations
@@ -77,9 +78,11 @@ backend/
 ├── index.js # Express server entry point (Cloud Run webhook)
 ├── package.json # Node.js dependencies and scripts
 └── server.js # Initializing express webhook
+```
 
 ### Flutter Frontend
 
+```
 frontend/
 │
 ├── lib/
@@ -90,6 +93,7 @@ frontend/
 │ ├── widgets/ # Especialized widgets
 │ └── main.dart # Main entry point
 └──  pubspec.yaml # Flutter dependencies
+```
 
 ---
 
@@ -114,3 +118,8 @@ frontend/
 ```bash
 cd backend/
 npm install
+```
+
+### Author
+
+Murilo Cremonese Wilke
