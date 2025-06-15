@@ -8,7 +8,6 @@ async function ensureClientExistsAndAddressSaved(db, whatsappClientId, providedA
   const clientDocSnapshot = await clientDocRef.get();
 
   if (!clientDocSnapshot.exists) {
-    console.log(`Creating new client ${whatsappClientId} with address.`);
     const newClientData = { shippingAddress: providedAddress };
     await clientDocRef.set(newClientData);
     return newClientData;
@@ -18,13 +17,11 @@ async function ensureClientExistsAndAddressSaved(db, whatsappClientId, providedA
   const savedAddress = clientData.shippingAddress;
 
   if (providedAddress !== savedAddress) {
-    console.log(`Updating address for client ${whatsappClientId}`);
     const updatedData = { shippingAddress: providedAddress, lastUpdated: new Date() };
     await clientDocRef.update(updatedData);
     return { ...clientData, ...updatedData };
   }
 
-  console.log(`Address up-to-date for client ${whatsappClientId}`);
   return clientData;
 }
 

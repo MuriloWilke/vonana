@@ -14,7 +14,6 @@ const { formatCurrency } = require('../utils/currencyUtils');
  * @param {WebhookClient} agent  Dialogflow fulfillment agent
  */
 async function handleCancelOrderRequest(agent) {
-  console.log('Executing handleCancelOrderRequest');
   const contextName = 'awaiting_cancel_order_selection';
 
   try {
@@ -26,8 +25,6 @@ async function handleCancelOrderRequest(agent) {
       return;
     }
 
-    console.log(`Retrieving pending orders for client: ${whatsappClientId}`);
-
     // Query Firestore for this client’s pending orders
     const pendingSnapshot = await db
       .collection('orders')
@@ -38,7 +35,6 @@ async function handleCancelOrderRequest(agent) {
 
     // If none, inform and clear any context
     if (pendingSnapshot.empty) {
-      console.log(`No pending orders found for ${whatsappClientId}`);
       agent.add('Você não tem nenhum pedido pendente que possa ser cancelado no momento.');
       agent.setContext({ name: contextName, lifespan: 0 });
       return;
@@ -77,14 +73,13 @@ async function handleCancelOrderRequest(agent) {
 
     // Send list to user
     agent.add(messageParts.join('\n\n'));
-    console.log(`Context '${contextName}' set with ${pendingIds.length} IDs`);
 
-  } catch (err) {
-    console.error('Error in handleCancelOrderRequest:', err);
+  } catch (error) {
+    console.error('Error in handleCancelOrderRequest:', error);
     agent.add('Desculpe, tive um problema interno ao buscar seus pedidos. Por favor, tente novamente mais tarde.');
     // Clear context on any failure
     agent.setContext({ name: contextName, lifespan: 0 });
-    throw err;
+    throw error;
   }
 }
 
@@ -96,7 +91,6 @@ async function handleCancelOrderRequest(agent) {
  * @param {WebhookClient} agent  Dialogflow fulfillment agent
  */
 async function handleCancelOrderSelection(agent) {
-  console.log('Executing handleCancelOrderSelection');
   const contextName = 'awaiting_cancel_order_selection';
 
   try {
@@ -114,7 +108,6 @@ async function handleCancelOrderSelection(agent) {
       }
       return;
     }
-    console.log(`User selected order number: ${selectedNumber}`);
 
     // Retrieve stored context and its parameters
     const origCtx = agent.getContext(contextName);
@@ -163,21 +156,19 @@ async function handleCancelOrderSelection(agent) {
     }
 
     await orderRef.update({ deliveryStatus: 'Cancelado' });
-    console.log(`Order ${orderId} canceled successfully`);
 
     // Confirm to user and clear context
     agent.add(`Ok! Seu pedido com ID ${orderId} foi cancelado.`);
     agent.setContext({ name: contextName, lifespan: 0 });
 
-  } catch (err) {
-    console.error('Error in handleCancelOrderSelection:', err);
+  } catch (error) {
+    console.error('Error in handleCancelOrderSelection:', error);
     agent.add('Desculpe, tivemos um problema interno ao processar seu cancelamento. Por favor, tente novamente mais tarde.');
     agent.setContext({ name: contextName, lifespan: 0 });
-    throw err;
+    throw error;
   }
 }
 
-// Export both handlers
 module.exports = {
   handleCancelOrderRequest,
   handleCancelOrderSelection

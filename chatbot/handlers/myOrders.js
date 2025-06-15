@@ -13,7 +13,6 @@ const { formatCurrency } = require('../utils/currencyUtils');
  * @param {WebhookClient} agent  Dialogflow fulfillment agent
  */
 async function handleMyOrders(agent) {
-  console.log('--- Executing handleMyOrders ---');
   try {
     // Retrieve the WhatsApp client ID from agent parameters.
     // Fallback to a hard‑coded test ID until real parameter is wired.
@@ -53,7 +52,7 @@ async function handleMyOrders(agent) {
       msg += `*Pedido ID:* ${doc.id}\n`;
 
       // Format and append the order’s creation date
-      msg += `*Data:* ${formatOrderDate(order.creationDate)}\n`;
+      msg += `*Data de Criação:* ${formatOrderDate(order.creationDate)}\n`;
 
       // Format and append the requested delivery date
       msg += `*Data para Entrega:* ${formatOrderDate(order.deliveryDate)}\n`;
@@ -86,13 +85,12 @@ async function handleMyOrders(agent) {
 
     // Send the assembled message back to the user
     agent.add(msg);
-    console.log('Finished handling handleMyOrders successfully.');
 
-  } catch (err) {
+  } catch (error) {
     // Log unexpected errors and notify the user of an internal failure
-    console.error('Error in handleMyOrders:', err);
+    console.error('Error in handleMyOrders:', error);
     agent.add('Desculpe, tive um problema interno ao buscar seus pedidos. Por favor, tente novamente mais tarde.');
-    throw err;  // rethrow so that upstream logging can catch it if needed
+    throw error;  // rethrow so that upstream logging can catch it if needed
   }
 }
 

@@ -1,29 +1,12 @@
 'use strict';
 
-const { formatCurrency } = require('../utils/currencyUtils');
+const { buildOrderConfirmationMessage } = require('../utils/messageUtils');
+const { interpretFinalMethod } = require('../utils/paymentUtils')
 const { getOrderConfiguration } = require('./configService');
 
 const db = require('../firestore/firestore');
 
-/**
- * Maps numeric payment codes to human‑readable method.
- */
-function interpretFinalMethod(methodValue) {
-  const paymentMethods = {
-    1: 'Pix',
-    2: 'Crédito',
-    3: 'Débito',
-    4: 'Dinheiro'
-  };
 
-  const method = paymentMethods[methodValue];
-  if (!method) {
-    console.warn('Unknown payment method:', methodValue);
-    return 'Desconhecido';
-  }
-
-  return method;
-}
 
 /**
  * Persists a new order doc into Firestore.
@@ -34,7 +17,6 @@ async function createAndSaveOrder(orderDetails) {
     throw new Error('Invalid order data.');
   }
   const ref = await db.collection('orders').add(orderDetails);
-  console.log('Order saved with id:', ref.id);
   return ref;
 }
 
@@ -61,7 +43,9 @@ async function processOrderFlow(agent, whatsappClientId, orderParams) {
     subtotal += itemValue;
     dozenCount += qty;
 
-    return { type, quantity: qty, itemValue };
+    const formattedType = type.charAt(0).toUpperCase() + type.slice(1);
+
+    return { type: formattedType, quantity: qty, itemValue };
   });
 
   // 3) calculate shipping
@@ -70,7 +54,7 @@ async function processOrderFlow(agent, whatsappClientId, orderParams) {
   // 4) calculate total
   const total = subtotal + shippingCost;
 
-  // 5) persist order
+  // 5) creating the order and setting to confirmation context
   const newOrder = {
     clientId: whatsappClientId,
     creationDate: new Date(),
@@ -84,34 +68,17 @@ async function processOrderFlow(agent, whatsappClientId, orderParams) {
     shippingCost
   };
 
-  const docRef = await createAndSaveOrder(newOrder);
+  agent.setContext({
+    name: 'awaiting_order_confirmation',
+    lifespan: 2,
+    parameters: {
+      orderToConfirm: JSON.stringify(newOrder)
+    }
+  });
 
+  
   // 6) respond back to user
-  const formattedTotal = formatCurrency(total);
-  const lines = items.map(i =>
-    `- ${i.quantity} dúzias de ovos ${i.type} (${formatCurrency(i.itemValue)})`
-  ).join('\n');
-
-  let resp = `Perfeito! Anotei seu pedido:\n${lines}\nTotal geral: ${formattedTotal}\n`;
-  
-  if (shippingCost) resp += `Custo de entrega: ${formatCurrency(shippingCost)}\n`;
-  
-  // Format the address for the message
-  const { shippingAddress } = orderParams;
-  const addressParts = [
-    shippingAddress['business-name'],
-    shippingAddress['street-address'],
-    [shippingAddress['city'], shippingAddress['admin-area']].filter(Boolean).join(' - '),
-    shippingAddress['zip-code'] ? `CEP ${shippingAddress['zip-code']}` : null,
-    shippingAddress['country']
-  ].filter(Boolean);
-
-  const formattedAddress = addressParts.join(', ');
-
-  // Add the address to the message
-  resp += `Para o endereço: ${formattedAddress}.\n`;
-  resp += `O ID do seu pedido é ${docRef.id}.`;
-
+  const resp = buildOrderConfirmationMessage(newOrder);
   agent.add(resp);
 }
 
@@ -136,7 +103,6 @@ async function continueOrderAfterValidation(agent, whatsappClientId, validatedOr
     const savedAddress = clientData ? clientData.shippingAddress : null;
 
     if (!savedAddress) {
-      console.log(`Address missing for client ${whatsappClientId}. Asking for address.`);
 
       // Set unified address context with original params
       agent.setContext({
@@ -166,7 +132,6 @@ async function continueOrderAfterValidation(agent, whatsappClientId, validatedOr
 
     // Calling the order processing flow
     await processOrderFlow(agent, whatsappClientId, orderParams);
-    console.log("processOrderFlow completed from continueOrderAfterValidation (using saved address).");
 
   } catch (error) {
     console.error("An error occurred during initial order handler flow:", error);

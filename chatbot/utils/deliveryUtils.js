@@ -21,7 +21,6 @@ function calculateNextDeliveryDay(targetDayIndex, currentDayIndex) {
   const nextDeliveryDate = new Date(today);
   nextDeliveryDate.setDate(today.getDate() + daysUntilNext);
 
-  console.log(`Calculated next delivery date for (index ${targetDayIndex}): ${nextDeliveryDate.toISOString()}`);
   return nextDeliveryDate;
 }
 
@@ -46,8 +45,6 @@ function validateDeliveryDayValue(agent, dayValue) {
     console.warn(`Validation failed: Invalid preferred delivery day received: ${dayValue}`);
     throw new Error(`Invalid preferred delivery day value: ${dayValue}`);
   }
-
-  console.log(`Preferred delivery day value validated successfully: ${dayValue}`);
 
   const targetDayIndex = validDaysMap[dayValue];
   const today = getBrazilToday();

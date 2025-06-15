@@ -32,7 +32,6 @@ function validateOriginalOrderArrays(agent, originalParams, contextToClearName) 
   }
 
   // If we reach here, validation passed
-  console.log(`Original order arrays validated successfully from context '${contextToClearName}'.`);
   return true;
 }
 
@@ -56,7 +55,6 @@ function validateMethodValue(agent, method) {
         throw new Error(`Invalid payment method value: ${method}`);
     }
 
-    console.log("Method value validated successfully.");
     return method;
 }
 
@@ -97,8 +95,6 @@ function validateEggTypeArrayValues(agent, eggTypeArray) {
 
         validatedEggTypeArray.push(normalizedType);
     }
-
-    console.log("Egg type array values validated successfully.");
     
     // Return the fully validated & normalized array
     return validatedEggTypeArray;
@@ -131,8 +127,6 @@ function validateDozensArrayValues(agent, dozensArray) {
             throw new Error(`Invalid dozen value: ${dozen}`);
         }
     }
-
-    console.log("Dozens array values validated successfully.");
 
     // Return the validated array
     return dozensArray;
