@@ -221,7 +221,7 @@ async function handleOrderConfirmation(agent) {
     if (action === 'Confirmar') {
 
       // Parse the order object
-      const order = JSON.parse(context.parameters.orderToConfirm);
+      const order = context.parameters.orderToConfirm;
 
       // Save order to database and get reference
       const docRef = await createAndSaveOrder(order);

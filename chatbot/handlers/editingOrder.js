@@ -35,7 +35,7 @@ async function handleEditAction(agent) {
   }
 
   // Parse the order object from context
-  const order = JSON.parse(context.parameters.orderToEdit);
+  const order = context.parameters.orderToEdit;
 
   // Retrieve user's chosen action to edit (e.g. date, items, payment method, address)
   const action = agent.parameters['editAction']
@@ -47,7 +47,7 @@ async function handleEditAction(agent) {
     agent.setContext({
       name: contextName,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order) }
+      parameters: { orderToEdit: order }
     });
     
     return;
@@ -62,7 +62,7 @@ async function handleEditAction(agent) {
     agent.setContext({
       name: dateContext,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order) }
+      parameters: { orderToEdit: order }
     });
 
     agent.add("Por favor, me diga se deseja para segunda, quinta ou sábado.");
@@ -76,7 +76,7 @@ async function handleEditAction(agent) {
     agent.setContext({
       name: methodContext,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order) }
+      parameters: { orderToEdit: order }
     });
 
     agent.add("Escolha o método de pagamento\n1.Pix\n2.Crédito\n3.Débito\n4.Dinheiro");
@@ -90,7 +90,7 @@ async function handleEditAction(agent) {
     agent.setContext({
       name: itemContext,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order) }
+      parameters: { orderToEdit: order }
     });
 
      const lines = order.items.map((item, idx) => {
@@ -108,7 +108,7 @@ async function handleEditAction(agent) {
     agent.setContext({
       name: addressContext,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order) }
+      parameters: { orderToEdit: order }
     });
 
     agent.add("Qual é o novo endereço?");
@@ -122,7 +122,7 @@ async function handleEditAction(agent) {
     agent.setContext({
       name: contextName,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order) }
+      parameters: { orderToEdit: order }
     });
   }
 }
@@ -151,7 +151,7 @@ async function handleEditOrderChangeDate(agent) {
   }
 
   // Parse the order object from context
-  const order = JSON.parse(context.parameters.orderToEdit);
+  const order = context.parameters.orderToEdit;
   
   // Retrieve the user-provided day value (expected to be a number representing weekday)
   const dayValue = Number(agent.parameters.dayValue); 
@@ -180,7 +180,7 @@ async function handleEditOrderChangeDate(agent) {
       name: confirmationContext,
       lifespan: 5,
       parameters: {
-        orderToConfirm: JSON.stringify(order)
+        orderToConfirm: order
       }
     });
 
@@ -199,7 +199,7 @@ async function handleEditOrderChangeDate(agent) {
       name: contextName,
       lifespan: 5,
       parameters: {
-        orderToEdit: JSON.stringify(order)
+        orderToEdit: order
       }
     });
 
@@ -231,7 +231,7 @@ async function handleEditOrderChangePaymentMethod(agent) {
   }
 
   // Parse the order data from context and retrieve payment method code from parameters
-  const order = JSON.parse(context.parameters.orderToEdit);
+  const order = context.parameters.orderToEdit;
   const methodCode = Number(agent.parameters['paymentMethod']);
 
   try {
@@ -251,7 +251,7 @@ async function handleEditOrderChangePaymentMethod(agent) {
     agent.setContext({
       name: confirmationContext,
       lifespan: 5,
-      parameters: { orderToConfirm: JSON.stringify(order) }
+      parameters: { orderToConfirm: order }
     });
 
     // Send confirmation message with updated order summary
@@ -268,7 +268,7 @@ async function handleEditOrderChangePaymentMethod(agent) {
     agent.setContext({
       name: contextName,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order) }
+      parameters: { orderToEdit: order }
     });
 
     agent.add("Por favor, informe um método de pagamento válido: 1. Pix, 2. Crédito, 3. Débito ou 4. Dinheiro.");
@@ -299,7 +299,7 @@ async function handleEditOrderChangeAddress(agent) {
   }
 
   // Parse the order data from context and retrieve new address from parameters
-  const order = JSON.parse(context.parameters.orderToEdit);
+  const order = context.parameters.orderToEdit;
   const newAddress = agent.parameters['shippingAddress'];
 
   // Validate that a proper address object was provided
@@ -310,7 +310,7 @@ async function handleEditOrderChangeAddress(agent) {
     agent.setContext({
       name: contextName,
       lifespan: 5,
-      parameters: { orderToConfirm: JSON.stringify(order) }
+      parameters: { orderToConfirm: order }
     });
 
     return;
@@ -338,7 +338,7 @@ async function handleEditOrderChangeAddress(agent) {
     agent.setContext({
       name: confirmationContext,
       lifespan: 5,
-      parameters: { orderToConfirm: JSON.stringify(order) }
+      parameters: { orderToConfirm: order }
     });
 
     // Send confirmation message with updated order summary
@@ -389,7 +389,7 @@ async function handleChooseItemToEdit(agent) {
   }
 
   // Parse the stored order and extract the index provided by user
-  const order = JSON.parse(context.parameters.orderToEdit);
+  const order = context.parameters.orderToEdit;
   const selectedIndex = agent.parameters['itemIndex'];
 
   // Build the list of items for display
@@ -404,7 +404,7 @@ async function handleChooseItemToEdit(agent) {
     agent.setContext({
       name: contextName,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order) }
+      parameters: { orderToEdit: order }
     });
 
     return;
@@ -421,7 +421,7 @@ async function handleChooseItemToEdit(agent) {
     agent.setContext({
       name: contextName,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order) }
+      parameters: { orderToEdit: order }
     });
 
     return;
@@ -440,7 +440,7 @@ async function handleChooseItemToEdit(agent) {
     name: itemActionContext,
     lifespan: 5,
     parameters: {
-      orderToEdit: JSON.stringify(order),
+      orderToEdit: order,
       editingItemIndex: itemIndex
     }
   });
@@ -480,7 +480,7 @@ async function handleOrderItemAction(agent) {
   }
 
   // Deserialize the order object and retrieve the item index
-  const order = JSON.parse(context.parameters.orderToEdit);
+  const order = context.parameters.orderToEdit;
   const itemIndex = context.parameters.editingItemIndex;
 
   // Get the user's selected action
@@ -493,7 +493,7 @@ async function handleOrderItemAction(agent) {
     agent.setContext({
       name: contextName,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order), editingItemIndex: itemIndex }
+      parameters: { orderToEdit: order, editingItemIndex: itemIndex }
     });
     
     
@@ -511,7 +511,7 @@ async function handleOrderItemAction(agent) {
     agent.setContext({
       name: itemQuantityContext,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order), editingItemIndex: itemIndex }
+      parameters: { orderToEdit: order, editingItemIndex: itemIndex }
     });
 
     agent.add("Qual é a nova quantidade de dúzias para este item?");
@@ -528,7 +528,7 @@ async function handleOrderItemAction(agent) {
     agent.setContext({
       name: itemTypeContext,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order), editingItemIndex: itemIndex }
+      parameters: { orderToEdit: order, editingItemIndex: itemIndex }
     });
 
     agent.add("Qual é o novo tipo de ovo? (extra ou jumbo)");
@@ -587,7 +587,7 @@ async function handleOrderItemAction(agent) {
     agent.setContext({
       name: confirmationContext,
       lifespan: 5,
-      parameters: { orderToConfirm: JSON.stringify(order) }
+      parameters: { orderToConfirm: order }
     });
 
     // Build updated order summary message
@@ -605,7 +605,7 @@ async function handleOrderItemAction(agent) {
     agent.setContext({
       name: contextName,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order), editingItemIndex: itemIndex }
+      parameters: { orderToEdit: order, editingItemIndex: itemIndex }
     });
   }
 }
@@ -633,8 +633,8 @@ async function handleEditItemQuantity(agent) {
     return;
   }
 
-  // Parse the order object from JSON string
-  const order = JSON.parse(context.parameters.orderToEdit);
+  // Parse the order object
+  const order = context.parameters.orderToEdit;
   const itemIndex = context.parameters.editingItemIndex;
 
   // Get the new quantity from the user's input
@@ -650,7 +650,7 @@ async function handleEditItemQuantity(agent) {
     agent.setContext({
       name: contextName,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order), editingItemIndex: itemIndex }
+      parameters: { orderToEdit: order, editingItemIndex: itemIndex }
     });
 
     return;
@@ -712,7 +712,7 @@ async function handleEditItemQuantity(agent) {
   agent.setContext({
     name: confirmationContext,
     lifespan: 5,
-    parameters: { orderToConfirm: JSON.stringify(order) }
+    parameters: { orderToConfirm: order }
   });
 
   // Build updated order summary message
@@ -746,8 +746,8 @@ async function handleEditItemType(agent) {
     return;
   }
 
-  // Parse the order object from JSON
-  const order = JSON.parse(context.parameters.orderToEdit);
+  // Parse the order object
+  const order = context.parameters.orderToEdit;
   const itemIndex = context.parameters.editingItemIndex;
 
   // Retrieve the new egg type provided by the user
@@ -765,7 +765,7 @@ async function handleEditItemType(agent) {
     agent.setContext({
       name: contextName,
       lifespan: 5,
-      parameters: { orderToEdit: JSON.stringify(order), editingItemIndex: itemIndex }
+      parameters: { orderToEdit: order, editingItemIndex: itemIndex }
     });
     
     return;
@@ -825,7 +825,7 @@ async function handleEditItemType(agent) {
   agent.setContext({
     name: confirmationContext,
     lifespan: 5,
-    parameters: { orderToConfirm: JSON.stringify(order) }
+    parameters: { orderToConfirm: order }
   });
 
   // Build a new confirmation message based on updated order

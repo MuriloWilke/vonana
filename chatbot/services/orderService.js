@@ -72,7 +72,7 @@ async function processOrderFlow(agent, whatsappClientId, orderParams) {
     name: 'awaiting_order_confirmation',
     lifespan: 2,
     parameters: {
-      orderToConfirm: JSON.stringify(newOrder)
+      orderToConfirm: newOrder
     }
   });
 
