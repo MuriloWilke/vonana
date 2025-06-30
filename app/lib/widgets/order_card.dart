@@ -10,7 +10,13 @@ import '../utils/map_utils.dart';
 class OrderCard extends StatelessWidget {
   final OrderModel order;
 
-  const OrderCard({super.key, required this.order});
+  final VoidCallback? onOrderConcluded;
+
+  const OrderCard({
+    super.key,
+    required this.order,
+    this.onOrderConcluded,
+  });
 
   /// Formats the shipping address into a readable string by joining available fields.
   String _getFormattedShippingAddress(ShippingAddressModel address) {
@@ -94,16 +100,16 @@ class OrderCard extends StatelessWidget {
                 value: order.totalDozens.toString()),
             const SizedBox(height: 8),
 
-             // Display each item with its type and quantity in dozens
-             ...order.items.map((item) => Padding(
-               padding: const EdgeInsets.only(bottom: 4.0),
-               child: _buildInfoRow(
-                 icon: Icons.egg_outlined,
-                 label: 'Item (${item.type}):',
-                 value: '${item.quantity} dúzia(s)',
-               ),
-             )).toList(),
-             if (order.items.isNotEmpty) const SizedBox(height: 8),
+            // Display each item with its type and quantity in dozens
+            ...order.items.map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: _buildInfoRow(
+                icon: Icons.egg_outlined,
+                label: 'Item (${item.type}):',
+                value: '${item.quantity} dúzia(s)',
+              ),
+            )).toList(),
+            if (order.items.isNotEmpty) const SizedBox(height: 8),
 
             // Display payment method
             _buildInfoRow(
@@ -166,7 +172,7 @@ class OrderCard extends StatelessWidget {
                   width: 220,
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.directions_car_filled_outlined),
-                    label: const Text('Gerar Rota'),
+                    label: const Text('Gerar Rota Individual'),
                     onPressed: () {
                       MapUtils.launchMapsUrl(context, displayShippingAddress);
                     },
@@ -200,9 +206,15 @@ class OrderCard extends StatelessWidget {
                             .doc(order.id)
                             .update({'deliveryStatus': 'Concluído'});
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Entrega marcada como concluída.')),
-                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text(
+                                'Entrega marcada como concluída.')),
+                          );
+                        }
+
+                        onOrderConcluded?.call();
+
                       } catch (e) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Erro ao concluir: $e')),
