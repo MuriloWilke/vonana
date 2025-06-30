@@ -91,6 +91,7 @@ app/
 │ ├── auth_gate/ # Firestore authentication
 │ ├── screens/ # UI screens and widgets
 │ ├── widgets/ # Especialized widgets
+│ ├── utils/ # Utilities
 │ └── main.dart # Main entry point
 └──  pubspec.yaml # Flutter dependencies
 ```
