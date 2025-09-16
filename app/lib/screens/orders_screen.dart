@@ -85,7 +85,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   DateTime _getNextValidOrderDay(DateTime from) {
-    final validDays = [DateTime.monday, DateTime.thursday, DateTime.saturday];
+    final validDays = [DateTime.monday, DateTime.thursday];
 
     if (validDays.contains(from.weekday)) {
       return from;
@@ -164,6 +164,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
       // 5. Share the archive
       final xFile = XFile(filePath, mimeType: 'text/csv', name: 'rota_circuit_$dateString.csv');
+      // ignore: deprecated_member_use
       await Share.shareXFiles([xFile], text: 'Aqui está a rota de entregas do dia $dateString.');
 
     } catch (e) {
@@ -201,8 +202,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Existem pedidos atrasados para os dia(s):\n' +
-                          _overdueDates.map((d) => DateFormat('dd/MM/yy').format(d)).join(', '),
+                      'Existem pedidos atrasados para os dia(s):\n${
+                          _overdueDates.map((d) => DateFormat('dd/MM/yy').format(d)).join(', ')}',
                       style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -226,7 +227,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     firstDate: DateTime(2023),
                     lastDate: DateTime(2100),
                     selectableDayPredicate: (DateTime date) {
-                      return [DateTime.monday, DateTime.thursday, DateTime.saturday].contains(date.weekday);
+                      return [DateTime.monday, DateTime.thursday].contains(date.weekday);
                     },
                   );
                   if (picked != null) {

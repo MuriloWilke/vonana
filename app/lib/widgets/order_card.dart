@@ -76,7 +76,7 @@ class OrderCard extends StatelessWidget {
                 ),
                 Flexible(
                   child: Text(
-                    'Id do Cliente: ${order.clientId.length > 8 ? order.clientId.substring(0, 8) + '...' : order.clientId}',
+                    'Id do Cliente: ${order.clientId.length > 8 ? '${order.clientId.substring(0, 8)}...' : order.clientId}',
                     style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -108,7 +108,7 @@ class OrderCard extends StatelessWidget {
                 label: 'Item (${item.type}):',
                 value: '${item.quantity} dúzia(s)',
               ),
-            )).toList(),
+            )),
             if (order.items.isNotEmpty) const SizedBox(height: 8),
 
             // Display payment method
@@ -216,6 +216,8 @@ class OrderCard extends StatelessWidget {
                         onOrderConcluded?.call();
 
                       } catch (e) {
+                        if (!context.mounted) return;
+
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Erro ao concluir: $e')),
                         );

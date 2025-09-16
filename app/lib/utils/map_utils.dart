@@ -5,83 +5,81 @@ import 'package:url_launcher/url_launcher.dart';
 class MapUtils {
   /// Opens Google Maps with a route from the current location (if available) to the destination address.
   static Future<void> launchMapsUrl(BuildContext context, String destinationAddress) async {
-    String originParam = '';
+    final TargetPlatform platform = Theme.of(context).platform;
 
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
+    void showSafeSnackBar(String message) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Serviço de localização desabilitado.')),
+          SnackBar(content: Text(message)),
         );
-        return;
       }
+    }
 
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Permissão de localização negada.')),
-          );
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(
-              'Permissão de localização negada permanentemente. Não podemos solicitar permissões.')),
-        );
-        return;
-      }
-
-      if (permission == LocationPermission.whileInUse ||
-          permission == LocationPermission.always) {
-        try {
-          Position position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.high,
-          );
-          originParam = '&saddr=${position.latitude},${position.longitude}';
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Não foi possível obter a localização: $e')),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao obter localização: $e')),
-      );
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      showSafeSnackBar('Serviço de localização desabilitado.');
       return;
     }
 
-    final String encodedDestination = Uri.encodeComponent(destinationAddress);
-    String googleMapsUrl;
-
-    if (originParam.isNotEmpty) {
-      googleMapsUrl = 'https://www.google.com/maps/dir/?api=1&origin=${originParam.replaceFirst("&saddr=", "")}&destination=$encodedDestination&travelmode=driving';
-    } else {
-      googleMapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=$encodedDestination&travelmode=driving';
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        showSafeSnackBar('Permissão de localização negada.');
+        return;
+      }
     }
 
-    final Uri launchUri = Uri.parse(googleMapsUrl);
+    if (permission == LocationPermission.deniedForever) {
+      showSafeSnackBar('Permissão negada permanentemente. Habilite nas configurações do app.');
+      return;
+    }
 
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri, mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Não foi possível abrir o app de mapas. Verifique se o Google Maps está instalado.')),
-      );
-      final Uri simplerLaunchUri = Uri.parse('https://maps.google.com/?q=$encodedDestination');
-      if (await canLaunchUrl(simplerLaunchUri)) {
-        await launchUrl(simplerLaunchUri, mode: LaunchMode.externalApplication);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não foi possível abrir o app de mapas.')),
-        );
+    Position? currentPosition;
+    if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+      try {
+        LocationSettings locationSettings;
+
+        if (platform == TargetPlatform.android) {
+          locationSettings = AndroidSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 100,
+            forceLocationManager: true,
+          );
+        } else {
+          locationSettings = const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 100,
+          );
+        }
+
+        currentPosition = await Geolocator.getCurrentPosition(
+          locationSettings: locationSettings,
+        ).timeout(const Duration(seconds: 10));
+
+      } catch (e) {
+        showSafeSnackBar('Não foi possível obter a localização atual: $e');
       }
+    }
+
+    final String encodedDestination = Uri.encodeComponent(destinationAddress);
+    Uri? mapsUri;
+
+    if (currentPosition != null) {
+      final origin = '${currentPosition.latitude},${currentPosition.longitude}';
+      mapsUri = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$encodedDestination&travelmode=driving',
+      );
+    } else {
+      mapsUri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=$encodedDestination',
+      );
+    }
+
+    if (await canLaunchUrl(mapsUri)) {
+      await launchUrl(mapsUri, mode: LaunchMode.externalApplication);
+    } else {
+      showSafeSnackBar('Não foi possível abrir o Google Maps.');
     }
   }
 }
