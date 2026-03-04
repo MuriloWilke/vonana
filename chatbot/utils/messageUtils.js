@@ -1,5 +1,4 @@
 const { formatCurrency } = require('./currencyUtils');
-const { interpretFinalMethod } = require('./paymentUtils');
 const { formatOrderDate } = require('./dateUtils');
 
 /**
@@ -15,23 +14,21 @@ function buildOrderConfirmationMessage(order) {
         `- ${item.quantity} dúzias de ovos ${item.type} (${formatCurrency(item.itemValue)})`
     ).join('\n');
 
-    let message = `📦 *Resumo do seu pedido:*\n\nItems:\n${lines}\n\n`;
+    let message = `📦 *Resumo do seu pedido:*\n\n🥚 *Items:*\n${lines}\n\n`;
 
     if (order.shippingCost) {
         message += `🚚 *Custo de entrega:* ${formatCurrency(order.shippingCost)}\n`;
     }
 
     message += `💰 *Total:* ${formattedTotal}\n`;
-    message += `💳 *Forma de pagamento:* ${interpretFinalMethod(order.paymentMethod)}\n`;
+    message += `💳 *Forma de pagamento:* ${order.paymentMethod}\n`;
 
     // Formata o endereço
     const { shippingAddress } = order;
     const addressParts = [
         shippingAddress['business-name'],
         shippingAddress['street-address'],
-        [shippingAddress['city'], shippingAddress['admin-area']].filter(Boolean).join(' - '),
-        shippingAddress['zip-code'] ? `CEP ${shippingAddress['zip-code']}` : null,
-        shippingAddress['country']
+        [shippingAddress['city'], shippingAddress['admin-area']].filter(Boolean).join(' - ')
     ].filter(Boolean);
 
     const formattedAddress = addressParts.join(', ');
@@ -41,7 +38,7 @@ function buildOrderConfirmationMessage(order) {
     const formattedDate = formatOrderDate(order.deliveryDate);
     message += `📅 *Data de entrega:* ${formattedDate}\n\n`;
 
-    message += `Escolha: *Confirmar*, *Editar*, ou *Cancelar*`;
+    message += `Escolha: \n\n1. *Confirmar*\n2. *Editar*\n3. *Cancelar*`;
 
     return message;
 }

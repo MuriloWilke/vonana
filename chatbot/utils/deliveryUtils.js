@@ -1,4 +1,8 @@
-const { getBrazilToday } = require('./dateUtils');
+'use strict'
+
+const { toZonedTime, fromZonedTime } = require('date-fns-tz');
+
+const BRAZIL_TIME_ZONE = 'America/Sao_Paulo';
 
 /**
  * Calculates the date of the next occurrence of a delivery day.
@@ -8,8 +12,8 @@ const { getBrazilToday } = require('./dateUtils');
  * @returns {Date} - The calculated next delivery date.
  */
 function calculateNextDeliveryDay(targetDayIndex, currentDayIndex) {
-  const today = getBrazilToday(); // Always using Brazil's timezone for consistency
-  today.setHours(0, 0, 0, 0); // Normalize to midnight
+  const todayInBrazil = toZonedTime(new Date(), BRAZIL_TIME_ZONE); // Always using Brazil's timezone for consistency
+  todayInBrazil.setHours(0, 0, 0, 0); // Normalize to midnight
 
   let daysUntilNext = targetDayIndex - currentDayIndex;
 
@@ -18,17 +22,17 @@ function calculateNextDeliveryDay(targetDayIndex, currentDayIndex) {
     daysUntilNext += 7;
   }
 
-  const nextDeliveryDate = new Date(today);
-  nextDeliveryDate.setDate(today.getDate() + daysUntilNext);
+  const nextDeliveryDateInBrazil = new Date(todayInBrazil);
+  nextDeliveryDateInBrazil.setDate(todayInBrazil.getDate() + daysUntilNext);
 
-  return nextDeliveryDate;
+   return fromZonedTime(nextDeliveryDateInBrazil, BRAZIL_TIME_ZONE);
 }
 
 /**
  * Validates the user's preferred delivery day value and calculates the corresponding delivery date.
  * 
  * @param {object} agent - Dialogflow agent object for adding error responses if needed.
- * @param {number} dayValue - The delivery day code provided by the user (e.g., 1 for Monday, 2 for Thursday, 3 for Saturday).
+ * @param {number} dayValue - The delivery day code provided by the user (e.g., 1 for Monday, 2 for Thursday).
  * @returns {Date} - The next valid delivery date.
  */
 function validateDeliveryDayValue(agent, dayValue) {
@@ -36,7 +40,6 @@ function validateDeliveryDayValue(agent, dayValue) {
   const validDaysMap = {
     1: 1,  // Monday
     2: 4,  // Thursday
-    3: 6,  // Saturday
   };
 
   const validDayNumbers = Object.keys(validDaysMap).map(Number);
@@ -47,7 +50,7 @@ function validateDeliveryDayValue(agent, dayValue) {
   }
 
   const targetDayIndex = validDaysMap[dayValue];
-  const today = getBrazilToday();
+  const today = toZonedTime(new Date(), BRAZIL_TIME_ZONE);
   const currentDayIndex = today.getDay();
 
   return calculateNextDeliveryDay(targetDayIndex, currentDayIndex);

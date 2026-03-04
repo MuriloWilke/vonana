@@ -24,6 +24,15 @@ function formatOrderDate(timestamp) {
       date = timestamp;
     } 
     
+    else if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+      
+      if (isNaN(date.getTime())) {
+         console.warn('Invalid date string provided:', timestamp);
+         return 'Data desconhecida';
+      }
+    }
+
     else {
       console.warn('Invalid date object:', timestamp);
       return 'Data desconhecida';
@@ -35,6 +44,7 @@ function formatOrderDate(timestamp) {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
+      timeZone: 'America/Sao_Paulo'
     };
 
     // Format the date according to 'pt-BR' locale
@@ -47,31 +57,6 @@ function formatOrderDate(timestamp) {
   }
 }
 
-/**
- * Returns today's date based on Brazil's timezone (UTC-3).
- * 
- * This function calculates the current date adjusted to Brazil's standard timezone,
- * ignoring daylight saving time. The returned Date object represents midnight (00:00:00)
- * of the current day in Brazil.
- * 
- * @returns {Date} - The current date in Brazil, with time set to 00:00:00.
- */
-function getBrazilToday() {
-  const now = new Date();
-
-  // Brazil standard timezone offset (UTC-3) in minutes
-  const utc3Offset = -3 * 60;
-
-  // Calculate the local Brazil time considering the user's current timezone offset
-  const localDate = new Date(now.getTime() + (utc3Offset - now.getTimezoneOffset()) * 60 * 1000);
-
-  // Set hours to midnight to normalize the date
-  localDate.setHours(0, 0, 0, 0);
-
-  return localDate;
-}
-
 module.exports = {
-  formatOrderDate,
-  getBrazilToday
+  formatOrderDate
 };

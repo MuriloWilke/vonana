@@ -16,7 +16,7 @@ function validateOriginalOrderArrays(agent, originalParams, contextToClearName) 
     console.error(`Validation failed: Missing or invalid original order arrays from context '${contextToClearName}'. Original Params:`, originalParams);
     agent.add("Desculpe, perdi algumas informações essenciais do seu pedido. Por favor, refaça seu pedido");
     // Cleaning the context
-    agent.setContext({ name: contextToClearName, lifespan: 0 });
+    agent.context.set({ name: contextToClearName, lifespan: 0 });
     // Throw an error to stop further execution in the calling function's try/catch
     throw new Error("Validation failed: Missing or invalid original order arrays in context.");
   }
@@ -26,7 +26,7 @@ function validateOriginalOrderArrays(agent, originalParams, contextToClearName) 
     console.error(`Validation failed: Mismatched or empty dozen/type arrays retrieved from context '${contextToClearName}'. Dozens: ${originalDozensArray}, Types: ${originalEggTypeArray}. Original Params:`, originalParams);
     agent.add("Desculpe, as informações do pedido parecem incompletas. Por favor, refaça seu pedido.");
     // Cleaning the context
-    agent.setContext({ name: contextToClearName, lifespan: 0 });
+    agent.context.set({ name: contextToClearName, lifespan: 0 });
     // Throw an error
     throw new Error("Validation failed: Mismatched or empty arrays in context.");
   }
@@ -58,83 +58,7 @@ function validateMethodValue(agent, method) {
     return method;
 }
 
-/**
- * Validates and normalizes the values inside the egg type array.
- * 
- * Ensures that:
- *  - The input is a valid non-empty array.
- *  - Each value matches one of the allowed egg types ("extra" or "jumbo").
- *  - Values are normalized to lowercase.
- * 
- * @param {object} agent - The Dialogflow agent object (not used here, but kept for consistency with other validators).
- * @param {Array} eggTypeArray - Array containing egg type values provided by the user.
- * @returns {Array} - The validated and normalized egg type array.
- * 
- * @throws Will throw an error if the input is invalid or contains invalid egg types.
- */
-function validateEggTypeArrayValues(agent, eggTypeArray) {
-    // Check if the input is a non-empty array
-    if (!Array.isArray(eggTypeArray) || eggTypeArray.length === 0) {
-        console.error("Validation failed: Egg type array is not an array or is empty.");
-        throw new Error("Os tipos de ovo parecem incorretos.");
-    }
-
-    const validEggTypes = ['extra', 'jumbo'];
-    const validatedEggTypeArray = [];
-
-    // Loop through each item and validate
-    for (const type of eggTypeArray) {
-        // Normalize to lowercase string for comparison
-        const normalizedType = typeof type === 'string' ? type.toLowerCase() : '';
-        
-        // Check if type is valid
-        if (!validEggTypes.includes(normalizedType)) {
-            console.warn(`Validation failed: Invalid egg type found in array: ${type}`);
-            throw new Error(`Invalid egg type value: ${type}`);
-        }
-
-        validatedEggTypeArray.push(normalizedType);
-    }
-    
-    // Return the fully validated & normalized array
-    return validatedEggTypeArray;
-}
-
-/**
- * Validates the values inside the dozens array.
- * 
- * Ensures that:
- *  - The input is a valid non-empty array.
- *  - Each value is a positive integer (representing dozens).
- * 
- * @param {object} agent - The Dialogflow agent object (not used here but kept for consistency).
- * @param {Array} dozensArray - Array containing quantities of dozens provided by the user.
- * @returns {Array} - The validated dozens array (unchanged if valid).
- * 
- * @throws Will throw an error if the input is invalid or contains non-positive integers.
- */
-function validateDozensArrayValues(agent, dozensArray) {
-    // Check if input is a valid non-empty array
-    if (!Array.isArray(dozensArray) || dozensArray.length === 0) {
-        console.error("Validation failed: Dozens array is not an array or is empty.");
-        throw new Error("Invalid dozens array structure.");
-    }
-
-    // Loop through and validate each dozen value
-    for (const dozen of dozensArray) {
-        if (typeof dozen !== 'number' || dozen <= 0 || !Number.isInteger(dozen)) {
-            console.warn(`Validation failed: Invalid or non-positive integer found in dozens array: ${dozen}`);
-            throw new Error(`Invalid dozen value: ${dozen}`);
-        }
-    }
-
-    // Return the validated array
-    return dozensArray;
-}
-
 module.exports = {
   validateOriginalOrderArrays,
-  validateMethodValue,
-  validateEggTypeArrayValues,
-  validateDozensArrayValues
+  validateMethodValue
 };
