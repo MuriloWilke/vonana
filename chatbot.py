@@ -1,7 +1,7 @@
 import os
 import json
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request
 from google.cloud import dialogflow
 from dotenv import load_dotenv
 
@@ -40,13 +40,8 @@ session_client = dialogflow.SessionsClient()
 app = Flask(__name__)
 
 # Webhook Route
-@app.route('/webhook', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
 def webhook():
-
-    print("Webhook request recebido!")
-    print(f"Method: {request.method}")
-    print(f"Headers: {request.headers}")
-    print(f"Data/JSON: {request.data.decode('utf-8')}")
 
     # Handle GET for verification
     if request.method == 'GET':
@@ -71,7 +66,6 @@ def webhook():
     elif request.method == 'POST':
         try:
             payload = request.json
-            print(json.dumps(payload, indent=2))
 
             # Look for messages in the payload
             if payload and 'entry' in payload and len(payload['entry']) > 0:
@@ -86,21 +80,15 @@ def webhook():
                                         # Using the phone number as the id
                                         whatsapp_user_id_raw = message['from']
 
-                                        print(f"Mensagem recebida de {whatsapp_user_id_raw}: {incoming_message}")
-
                                         # Create a unique Session ID for this user in Dialogflow
-                                        session_id = whatsapp_user_id_raw.replace('+', '')
-                                        dialogflow_session_id = f'{SESSION_ID_PREFIX}-{session_id}'
-
-                                        print(f"Usando Session ID para Dialogflow: {dialogflow_session_id}")
+                                        whatsapp_client_id = f"{SESSION_ID_PREFIX}:{whatsapp_user_id_raw}"
 
                                         # Send the message to Dialogflow
                                         dialogflow_response_text = detect_intent_text(
                                             project_id=PROJECT_ID,
-                                            session_id=dialogflow_session_id,
+                                            session_id=whatsapp_client_id,
                                             text=incoming_message,
                                             language_code='pt-BR',
-                                            client_id = whatsapp_user_id_raw
                                         )
 
                                         print(f"Resposta do Dialogflow: {dialogflow_response_text}")
@@ -116,28 +104,19 @@ def webhook():
             return 'Error processing message', 200
 
 # Function to call Dialogflow's Detect Intent API
-def detect_intent_text(project_id, session_id, text, language_code, client_id=None):
+def detect_intent_text(project_id, session_id, text, language_code):
 
     try:
-        session_path = session_client.project_location_session_path(
-            project_id, DIALOGFLOW_LOCATION, session_id
+        session_path = session_client.session_path(
+            project_id, session_id
         )
-        print(f"Dialogflow Session Path: {session_path}")
 
         text_input = dialogflow.TextInput(text=text, language_code=language_code)
         query_input = dialogflow.QueryInput(text=text_input)
-
         query_params = None
 
-        if client_id:
-            # Create the QueryParameters object
-            query_params = session.QueryParameters(
-                parameters={"whatsappClientId": client_id}
-            )
-            print(f"Including Query Parameters: {query_params}")
-
         # Build the DetectIntentRequest.
-        request = session.DetectIntentRequest(
+        request_dialogflow = dialogflow.DetectIntentRequest(
             session=session_path,
             query_input=query_input,
             query_params=query_params
@@ -145,7 +124,7 @@ def detect_intent_text(project_id, session_id, text, language_code, client_id=No
 
         # Call the API with the complete request
         response = session_client.detect_intent(
-            request=request
+            request=request_dialogflow
         )
 
         fulfillment_text = response.query_result.fulfillment_text
@@ -184,19 +163,17 @@ def send_whatsapp_message(to_phone_number, message_text):
         response = requests.post(url, headers=headers, data=json.dumps(payload))
         response.raise_for_status()
 
-        print(f"WhatsApp API response status: {response.status_code}")
-        print(f"WhatsApp API response body: {response.json()}")
-
         return True
 
     except requests.exceptions.RequestException as e:
         print(f"Erro ao enviar mensagem via WhatsApp API: {e}")
-        return False
-    except Exception as e:
-        print(f"Erro inesperado ao enviar mensagem WhatsApp: {e}")
+        
+        if e.response is not None:
+            print(f"Detalhes do erro (corpo da resposta): {e.response.text}")
         return False
 
 # Running a Flask server locally
 if __name__ == '__main__':
-    print("Rodando Flask app...")
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("PORT", 8080))
+    print(f"Rodando Flask app na porta {port}...")
+    app.run(debug=True, host='0.0.0.0', port=port)

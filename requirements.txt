@@ -1,0 +1,4 @@
+Flask
+google-cloud-dialogflow
+python-dotenv
+requests
