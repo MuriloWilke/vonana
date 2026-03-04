@@ -17,8 +17,9 @@ async function handleCancelOrderRequest(agent) {
   const contextName = 'awaiting_cancel_order_selection';
 
   try {
-    // TODO: replace the hard‑coded ID with agent.parameters.whatsappClientId
-    const whatsappClientId = 'whatsapp:+15551234568';
+    const sessionPath = agent.session;
+    const whatsappClientId = sessionPath.split('/sessions/')[1];
+    
     if (!whatsappClientId) {
       console.error('WhatsApp Client ID not received for handleCancelOrderRequest.');
       agent.add('Desculpe, não consegui identificar seu usuário para buscar seus pedidos.');
@@ -36,7 +37,7 @@ async function handleCancelOrderRequest(agent) {
     // If none, inform and clear any context
     if (pendingSnapshot.empty) {
       agent.add('Você não tem nenhum pedido pendente que possa ser cancelado no momento.');
-      agent.setContext({ name: contextName, lifespan: 0 });
+      agent.context.set({ name: contextName, lifespan: 0 });
       return;
     }
 
@@ -62,7 +63,7 @@ async function handleCancelOrderRequest(agent) {
     });
 
     // Store needed info in context to pick up on next intent
-    agent.setContext({
+    agent.context.set({
       name: contextName,
       lifespan: 2,
       parameters: {
@@ -78,7 +79,7 @@ async function handleCancelOrderRequest(agent) {
     console.error('Error in handleCancelOrderRequest:', error);
     agent.add('Desculpe, tive um problema interno ao buscar seus pedidos. Por favor, tente novamente mais tarde.');
     // Clear context on any failure
-    agent.setContext({ name: contextName, lifespan: 0 });
+    agent.context.set({ name: contextName, lifespan: 0 });
     throw error;
   }
 }
@@ -102,19 +103,19 @@ async function handleCancelOrderSelection(agent) {
       console.warn(`Invalid selection: ${selectedNumber}`);
       agent.add('Por favor, diga apenas o *número* do pedido que você deseja cancelar.');
       // Re‑set the same context so we keep awaiting
-      const orig = agent.getContext(contextName);
+      const orig = agent.context.get(contextName);
       if (orig) {
-        agent.setContext({ name: contextName, lifespan: 2, parameters: orig.parameters });
+        agent.context.set({ name: contextName, lifespan: 2, parameters: orig.parameters });
       }
       return;
     }
 
     // Retrieve stored context and its parameters
-    const origCtx = agent.getContext(contextName);
+    const origCtx = agent.context.get(contextName);
     if (!origCtx?.parameters) {
       console.error('Context missing during selection');
       agent.add('Desculpe, perdi as informações dos pedidos. Podemos tentar de novo?');
-      agent.setContext({ name: contextName, lifespan: 0 });
+      agent.context.set({ name: contextName, lifespan: 0 });
       return;
     }
     const { whatsappClientId, pendingOrderIdsList } = origCtx.parameters;
@@ -122,7 +123,7 @@ async function handleCancelOrderSelection(agent) {
     if (!whatsappClientId || !Array.isArray(pendingOrderIdsList) || pendingOrderIdsList.length === 0) {
       console.error('Invalid context state.');
       agent.add('Desculpe, perdi as informações dos pedidos. Podemos tentar de novo?');
-      agent.setContext({ name: contextName, lifespan: 0 });
+      agent.context.set({ name: contextName, lifespan: 0 });
       return;
     }
 
@@ -130,7 +131,7 @@ async function handleCancelOrderSelection(agent) {
     if (!Array.isArray(pendingOrderIdsList) || pendingOrderIdsList.length === 0) {
       console.error('No pendingOrderIdsList in context');
       agent.add('Desculpe, não consegui recuperar seus pedidos. Tente novamente.');
-      agent.setContext({ name: contextName, lifespan: 0 });
+      agent.context.set({ name: contextName, lifespan: 0 });
       return;
     }
 
@@ -139,7 +140,7 @@ async function handleCancelOrderSelection(agent) {
     if (idx < 0 || idx >= pendingOrderIdsList.length) {
       console.warn(`Selection out of range: ${selectedNumber}`);
       agent.add(`Por favor, escolha um número entre 1 e ${pendingOrderIdsList.length}.`);
-      agent.setContext({ name: contextName, lifespan: 2, parameters: origCtx.parameters });
+      agent.context.set({ name: contextName, lifespan: 2, parameters: origCtx.parameters });
       return;
     }
 
@@ -151,7 +152,7 @@ async function handleCancelOrderSelection(agent) {
     // Verify it’s still pending
     if (!snapshot.exists || snapshot.data().deliveryStatus !== 'Pendente') {
       agent.add('Este pedido não está mais pendente e não pode ser cancelado.');
-      agent.setContext({ name: contextName, lifespan: 0 });
+      agent.context.set({ name: contextName, lifespan: 0 });
       return;
     }
 
@@ -159,12 +160,12 @@ async function handleCancelOrderSelection(agent) {
 
     // Confirm to user and clear context
     agent.add(`Ok! Seu pedido com ID ${orderId} foi cancelado.`);
-    agent.setContext({ name: contextName, lifespan: 0 });
+    agent.context.set({ name: contextName, lifespan: 0 });
 
   } catch (error) {
     console.error('Error in handleCancelOrderSelection:', error);
     agent.add('Desculpe, tivemos um problema interno ao processar seu cancelamento. Por favor, tente novamente mais tarde.');
-    agent.setContext({ name: contextName, lifespan: 0 });
+    agent.context.set({ name: contextName, lifespan: 0 });
     throw error;
   }
 }

@@ -1,169 +1,330 @@
-const { getBrazilToday } = require('../utils/dateUtils');
-
-const { calculateNextDeliveryDay } = require('../utils/deliveryUtils');
-
+const { validateDeliveryDayValue } = require('../utils/deliveryUtils');
 const { continueOrderAfterValidation, createAndSaveOrder } = require('../services/orderService');
+const { validateMethodValue } = require('../utils/validationUtils');
+const { interpretFinalMethod } = require('../utils/paymentUtils');
 
+const ORDER_CONTEXT = 'awaiting_order_details';
+const QTY_CONTEXT = 'new_order_awaiting_quantity';
+const TYPE_CONTEXT = 'new_order_awaiting_type';
+const ADD_MORE_CONTEXT = 'new_order_awaiting_add_more';
+const DAY_CONTEXT = 'new_order_awaiting_day';
+const METHOD_CONTEXT = 'new_order_awaiting_method';
+
+/**
+ * Main "State Machine" handler for the order flow.
+ * It checks what information is missing and asks the next question.
+ * @param {WebhookClient} agent
+ */
 async function handleOrder(agent) {
-
-  // Context names for each stage of validation, used for correcting invalid data later
-  const dozensContextName = 'awaiting_valid_dozens_mixed_order';
-  const eggTypeContextName = 'awaiting_valid_egg_type_mixed_order';
-  const preferredDeliveryDayContextName = 'awaiting_valid_preferred_delivery_day';
-  const methodContextName = 'awaiting_valid_method';
-
   try {
+    const sessionPath = agent.session;
+    const whatsappClientId = sessionPath.split('/sessions/')[1];
 
-    // Retrieve client ID
-    //const whatsappClientId = agent.parameters.whatsappClientId;
-
-    // Hardcoded client ID for testing purposes
-    const whatsappClientId = 'whatsapp:+15551234568';
-
-    // If client ID is not found, stop processing
-    if (!whatsappClientId){
-      console.error("WhatsApp Client ID not received in the Fulfillment.");
-      agent.add("Desculpe, não consegui identificar seu usuário para fazer o pedido. Por favor, tente novamente mais tarde.");
+    if (!whatsappClientId) {
+      console.error("WhatsApp Client ID not received in handleOrder.");
+      agent.add("Desculpe, não consegui identificar seu usuário. Por favor, tente novamente mais tarde.");
       return;
     }
 
-    // Extract parameters sent by Dialogflow from the user's input
-    const dozensArray = agent.parameters.dozens; // Array of dozens (quantities)
-    const method = Number(agent.parameters.method); // Payment method
-    const eggTypeArray = agent.parameters.eggType; // Array of egg types (e.g. 'extra', 'jumbo')
-    const preferredDeliveryDay = Number(agent.parameters.preferredDeliveryDay); // Delivery day
+    // Get or Create the Order Object from context
+    let currentOrder;
+    const orderContext = agent.context.get(ORDER_CONTEXT);
 
-    // Validate that both dozens and egg types are present, have the same length, and are non-empty arrays
-    if (!Array.isArray(dozensArray) || !Array.isArray(eggTypeArray) || 
-        dozensArray.length === 0 || eggTypeArray.length === 0 || 
-        dozensArray.length !== eggTypeArray.length
-      ) {
-
-      console.warn(`Mismatched or missing dozens/egg type arrays. Dozens: ${dozensArray}, Types: ${eggTypeArray}`);
-      agent.add("Para um pedido misto, por favor, diga a quantidade e o tipo para cada item, como '3 dúzias extra e 2 dúzias jumbo'.");
-
+    if (orderContext) {
+      currentOrder = orderContext.parameters.currentOrder || { items: [], clientId: whatsappClientId };
+    } else {
+      currentOrder = { items: [], clientId: whatsappClientId };
+    }
+    
+    // Pre-fill with any parameters the user provided *this turn*
+    // (This handles the "fast track" case, e.g., "Quero 10 dúzias extra")
+    prefillOrderFromParameters(agent, currentOrder);
+    
+    // State Machine: Check what's missing and ask for it
+    if (currentOrder.items.length === 0) {
+      agent.add("Certo! Vamos começar. Quantas dúzias você gostaria de adicionar?");
+      setOrderContexts(agent, currentOrder, QTY_CONTEXT);
       return;
     }
 
-    // Validate each dozens value individually (must be positive integers)
-    for (const dozen of dozensArray) {
-      if (typeof dozen !== 'number' || dozen <= 0 || !Number.isInteger(dozen)) {
-
-        console.warn(`Invalid or non-positive integer found in dozens array: ${dozen}. Setting context '${dozensContextName}'.`);
-        agent.add("Parece que um dos números de dúzias não é válido. Por favor, diga um número inteiro positivo para cada tipo.");
-        
-        // If invalid, set context to handle corrected dozens
-        agent.setContext({
-            name: dozensContextName,
-            lifespan: 2,
-            parameters: {
-              whatsappClientId: whatsappClientId,
-              originalOrderEggTypeArray: eggTypeArray,
-              originalOrderPreferredDeliveryDay: preferredDeliveryDay,
-              originalOrderMethod: method,
-            }
-          });
-        return;
-      }
-    }
-
-    // Validate egg type values individually (must be either 'extra' or 'jumbo')
-    const validEggTypes = ['extra', 'jumbo'];
-    const validatedEggTypeArray = eggTypeArray.map(type => type.toLowerCase()); // Normalize to lowercase for easier comparison
-
-    for (const type of validatedEggTypeArray) {
-      if (!validEggTypes.includes(type)) {
-        console.warn(`Invalid egg type found in array: ${type}. Setting context '${eggTypeContextName}'.`);
-        agent.add(`Não reconheci um dos tipos de ovo. Por favor, diga Extra ou Jumbo.`);
-        
-        // If invalid, set context to handle corrected egg types
-        agent.setContext({
-          name: eggTypeContextName,
-          lifespan: 2,
-          parameters: {
-            whatsappClientId: whatsappClientId,
-            originalOrderDozensArray: dozensArray,
-            originalOrderPreferredDeliveryDay: preferredDeliveryDay,
-            originalOrderMethod: method,
-          }
-        });
-        return;
-      }
-    }
-
-    // Validate delivery day
-    const validDaysMap = {
-      1: 1,
-      2: 4,
-      3: 6,
-    };
-
-    const validDays = [1, 2, 3];
-
-    if (typeof preferredDeliveryDay !== 'number' || !validDays.includes(preferredDeliveryDay)){
-      console.warn(`Invalid preferred delivery day received: ${preferredDeliveryDay}`);
-      agent.add("Por favor, escolha um dia para entrega válido.\nQual será o dia para entrega?\n1. Segunda\n2. Quinta\n3. Sábado");
-      
-      // If invalid, set context to handle corrected delivery day
-      agent.setContext({
-        name: preferredDeliveryDayContextName,
-        lifespan: 2,
-        parameters: {
-          whatsappClientId: whatsappClientId,
-          originalOrderDozensArray: dozensArray,
-          originalOrderEggTypeArray: validatedEggTypeArray,
-          originalOrderMethod: method,
-        }
-      });
+    if (!currentOrder.deliveryDate) {
+      agent.add("OK. Qual o dia para entrega?\n\n1. *Segunda*\n2. *Quinta*");
+      setOrderContexts(agent, currentOrder, DAY_CONTEXT);
       return;
     }
 
-    // Calculate the actual delivery date based on today's date and the requested weekday
-    const targetDayIndex = validDaysMap[preferredDeliveryDay];
-    const today = getBrazilToday();
-    today.setHours(0, 0, 0, 0); // Normalize time for easier calculation
-    const currentDayIndex = today.getDay();
-
-    // Utility function that calculates the next correct delivery date
-    const deliveryDate = calculateNextDeliveryDay(targetDayIndex, currentDayIndex)
-
-    // Validate payment method
-    const validMethods = [1, 2, 3, 4];
-
-    if (typeof method !== 'number' || !validMethods.includes(method)) {
-      console.warn(`Invalid payment method received: ${method}`);
-      agent.add("Por favor, escolha uma forma de pagamento válida.\nQual será a forma de pagamento?\n1. Cartão de Crédito\n2. Pix\n3. Débito\n4. Dinheiro");
-      
-      // If invalid, set context to handle corrected payment method
-      agent.setContext({
-        name: methodContextName,
-        lifespan: 2,
-        parameters: {
-          whatsappClientId: whatsappClientId,
-          originalOrderDozensArray: dozensArray,
-          originalOrderEggTypeArray: validatedEggTypeArray,
-          originalOrderPreferredDeliveryDay: deliveryDate,
-        }
-      });
+    if (!currentOrder.paymentMethod) {
+      agent.add("Qual será a forma de pagamento?\n\n1. *Pix*\n2. *Crédito*\n3. *Débito*\n4. *Dinheiro*");
+      setOrderContexts(agent, currentOrder, METHOD_CONTEXT);
       return;
     }
 
-    // All validations passed: prepare validated order parameters    
+    // All data is collected. Move to address validation and confirmation.
+    console.log("Order is complete, moving to validation:", currentOrder);
+
+    // Clear all ordering contexts
+    setOrderContexts(agent, currentOrder, null, 0); 
+    
+    // Format data to match what continueOrderAfterValidation expects
     const validatedOrderParams = {
-      dozensArray: dozensArray,
-      eggTypeArray: validatedEggTypeArray,
-      deliveryDate: deliveryDate,
-      method: method,
+      dozensArray: currentOrder.items.map(item => item.quantity),
+      eggTypeArray: currentOrder.items.map(item => item.type),
+      deliveryDate: currentOrder.deliveryDate,
+      paymentMethod: currentOrder.paymentMethod,
     };
 
-    // Pass control to the next function that will continue processing the order
     await continueOrderAfterValidation(agent, whatsappClientId, validatedOrderParams);
+
   } catch (error) {
-    // Handle any unexpected errors
-    console.error("An error occurred during initial order handler flow:", error);
+    console.error("An error occurred in handleOrder state machine:", error);
     agent.add(`Desculpe, tive um problema interno. Por favor, tente novamente mais tarde.`);
+    agent.context.set({ name: ORDER_CONTEXT, lifespan: 0 });
     throw error;
   }
+}
+
+/**
+ * Handles the 'Order - Capture Quantity' intent.
+ * Validates the quantity and asks for the type.
+ * @param {WebhookClient} agent
+ */
+async function handleCaptureQuantity(agent) {
+  const { currentOrder, tempState } = getOrderContexts(agent);
+  const quantity = agent.parameters.quantity;
+
+  // Validate the input
+  if (!quantity || typeof quantity !== 'number' || quantity <= 0 || !Number.isInteger(quantity)) {
+    agent.add("Não entendi. Por favor, informe o número de dúzias que você deseja.");
+    setOrderContexts(agent, currentOrder, QTY_CONTEXT, 2, tempState);
+    return;
+  }
+
+  // Valid input: Save quantity temporarily and ask for type
+  tempState.tempQuantity = quantity;
+  agent.add(`Entendido, ${quantity} dúzia(s). Qual o tipo?\n\n1. *Extra*\n2. *Jumbo*`);
+  setOrderContexts(agent, currentOrder, TYPE_CONTEXT, 2, tempState);
+}
+
+/**
+ * Handles the 'Order - Capture Type' intent.
+ * Validates the type, aggregates it into the cart, and asks to add more.
+ * @param {WebhookClient} agent
+ */
+async function handleCaptureType(agent) {
+  const { currentOrder, tempState } = getOrderContexts(agent);
+  const eggType = agent.parameters.eggType ? agent.parameters.eggType.toLowerCase() : null;
+  const quantity = tempState.tempQuantity;
+
+  // Validate the input
+  if (!eggType || !['extra', 'jumbo'].includes(eggType)) {
+    // Invalid input: Re-ask
+    agent.add("Desculpe, tipo inválido. Por favor, escolha:\n\n1. *Extra*\n2. *Jumbo*");
+    setOrderContexts(agent, currentOrder, TYPE_CONTEXT, 2, tempState);
+    return;
+  }
+
+  if (!quantity) {
+    // Should not happen, but a good safeguard
+    console.error("Lost quantity in context. Restarting item loop.");
+    agent.add("Desculpe, perdi a quantidade. Quantas dúzias você gostaria?");
+    setOrderContexts(agent, currentOrder, QTY_CONTEXT);
+    return;
+  }
+
+  // --- Aggregation Logic ---
+  const existingItem = currentOrder.items.find(item => item.type === eggType);
+  let message;
+
+  if (existingItem) {
+    // Item exists: SUM the quantity
+    existingItem.quantity += quantity;
+    message = `Entendido! Somei mais ${quantity} dúzia(s) ${eggType}. Agora você tem um total de ${existingItem.quantity} dúzia(s) ${eggType}.`;
+  } else {
+    // New item: PUSH to array
+    currentOrder.items.push({ quantity: quantity, type: eggType });
+    message = `Perfeito, adicionei ${quantity} dúzia(s) ${eggType}.`;
+  }
+
+  // Clear the temporary quantity
+  tempState.tempQuantity = null;
+
+  // Ask to add more items
+  agent.add(message + "\nDeseja adicionar mais algum item?\n\n1. *Sim*\n2. *Não*");
+  setOrderContexts(agent, currentOrder, ADD_MORE_CONTEXT, 2, tempState);
+}
+
+/**
+ * Handles the 'Order - Add More Items - yes' intent.
+ * Loops back to ask for the next item's quantity.
+ * @param {WebhookClient} agent
+ */
+async function handleWantsMoreItems(agent) {
+  const { currentOrder, tempState } = getOrderContexts(agent);
+  agent.add("Ok. Quantas dúzias para o próximo item?");
+  setOrderContexts(agent, currentOrder, QTY_CONTEXT, 2, tempState);
+}
+
+/**
+ * Handles the 'Order - Add More Items - no' intent.
+ * Calls the main handleOrder() to proceed to the next part of the flow.
+ * @param {WebhookClient} agent
+ */
+async function handleDoneAddingItems(agent) {
+  // Pass control back to the main state machine
+  return handleOrder(agent);
+}
+
+/**
+ * Handles the 'Order - Capture Day' intent.
+ * Validates the day and calls handleOrder() to proceed.
+ * @param {WebhookClient} agent
+ */
+async function handleCaptureDay(agent) {
+  const { currentOrder, tempState } = getOrderContexts(agent);
+  const dayValue = Number(agent.parameters.deliveryDate);
+
+  try {
+    // Validate the day
+    const deliveryDate = validateDeliveryDayValue(agent, dayValue);
+
+    // Valid: Save and call main state machine
+    currentOrder.deliveryDate = deliveryDate;
+    setOrderContexts(agent, currentOrder, null, 0, tempState);
+    return handleOrder(agent);
+  } catch (error) {
+    // Invalid day: Re-ask
+    console.warn(`Invalid delivery day: ${dayValue}`);
+    agent.add("Dia inválido. Por favor, escolha:\n\n1. *Segunda*\n2. *Quinta*");
+    setOrderContexts(agent, currentOrder, DAY_CONTEXT, 2, tempState);
+  }
+}
+
+/**
+ * Handles the 'Order - Capture Method' intent.
+ * Validates the method and calls handleOrder() to finalize.
+ * @param {WebhookClient} agent
+ */
+async function handleCaptureMethod(agent) {
+  console.log(agent.parameters.paymentMethod);
+  const { currentOrder, tempState } = getOrderContexts(agent);
+  const paymentMethod = Number(agent.parameters.paymentMethod);
+
+  try {
+    // Validate the method
+    const validatedMethod = validateMethodValue(agent, paymentMethod);
+    
+    // Valid: Save and call main state machine
+    currentOrder.paymentMethod = interpretFinalMethod(validatedMethod);
+    
+    setOrderContexts(agent, currentOrder, null, 0, tempState);
+    return handleOrder(agent);
+  } catch (error) {
+    // Invalid method: Re-ask
+    console.warn(`Invalid payment method: ${paymentMethod}`);
+    agent.add("Método inválido. Por favor, escolha:\n\n 1. *Pix*\n2. *Crédito*\n3. *Débito*\n4. *Dinheiro*");
+    setOrderContexts(agent, currentOrder, METHOD_CONTEXT, 2, tempState);
+  }
+}
+
+
+// --- HELPER FUNCTIONS ---
+
+/**
+ * Safely retrieves the main order context and the temp state.
+ * @param {WebhookClient} agent
+ * @returns {{currentOrder: object, tempState: object}}
+ */
+function getOrderContexts(agent) {
+  const orderContext = agent.context.get(ORDER_CONTEXT);
+  const clientId = agent.session.split('/sessions/')[1];
+  
+  if (orderContext && orderContext.parameters.currentOrder) {
+    return { 
+      currentOrder: orderContext.parameters.currentOrder, 
+      tempState: orderContext.parameters.tempState || {} 
+    };
+  }
+  // Fallback in case context is lost
+  return { 
+    currentOrder: { items: [], clientId: clientId }, 
+    tempState: {} 
+  };
+}
+
+/**
+ * Sets the main order context and a specific "state" context.
+ * @param {WebhookClient} agent
+ * @param {object} currentOrder - The main order object to save.
+ * @param {string} stateContextName - The name of the specific context to set (e.g., 'awaiting_item_quantity').
+ * @param {number} [lifespan=2] - The lifespan for the contexts.
+ * @param {object} [tempState={}] - Temporary state to persist (like tempQuantity).
+ */
+function setOrderContexts(agent, currentOrder, stateContextName, lifespan = 2, tempState = {}) {
+  // Clear all other state contexts
+  const allStates = [QTY_CONTEXT, TYPE_CONTEXT, ADD_MORE_CONTEXT, DAY_CONTEXT, METHOD_CONTEXT];
+  allStates.forEach(ctx => {
+    if (ctx !== stateContextName) {
+      agent.context.set({ name: ctx, lifespan: 0 });
+    }
+  });
+
+  // Set the specific state context for the next step
+  if (stateContextName && lifespan > 0) {
+    agent.context.set({ name: stateContextName, lifespan: lifespan });
+  }
+
+  // Persist the main order object
+  agent.context.set({
+    name: ORDER_CONTEXT,
+    lifespan: lifespan,
+    parameters: {
+      currentOrder: currentOrder,
+      tempState: tempState
+    }
+  });
+}
+
+/**
+ * Pre-fills the order object with parameters from the user's *first* message.
+ * @param {WebhookClient} agent
+ * @param {object} currentOrder
+ */
+function prefillOrderFromParameters(agent, currentOrder) {
+  // Only prefill if items are empty (i.e., it's the first pass)
+  if (currentOrder.items.length > 0) return;
+
+  const dozensArray = agent.parameters.dozens;
+  const eggTypeArray = agent.parameters.eggType;
+  const deliveryDate = Number(agent.parameters.deliveryDate);
+  const paymentMethod = Number(agent.parameters.paymentMethod);
+
+  // Prefill items (handles "2 dúzias extra e 1 jumbo")
+  if (Array.isArray(dozensArray) && Array.isArray(eggTypeArray) && dozensArray.length === eggTypeArray.length) {
+    for (let i = 0; i < dozensArray.length; i++) {
+      const qty = Number(dozensArray[i]);
+      const type = eggTypeArray[i] ? eggTypeArray[i].toLowerCase() : null;
+      if (qty > 0 && type && ['extra', 'jumbo'].includes(type)) {
+        // Use aggregation logic right away
+        const existingItem = currentOrder.items.find(item => item.type === type);
+        if (existingItem) {
+          existingItem.quantity += qty;
+        } else {
+          currentOrder.items.push({ quantity: qty, type: type });
+        }
+      }
+    }
+  }
+
+  // Prefill delivery day
+  try {
+    currentOrder.deliveryDate = validateDeliveryDayValue(agent, deliveryDate);
+  } catch (e) { /* ignore invalid day */ }
+
+  // Prefill payment method
+  try {
+    const validatedMethod = validateMethodValue(agent, paymentMethod);
+    currentOrder.paymentMethod = interpretFinalMethod(paymentMethod);
+  } catch (e) { /* ignore invalid method */ }
 }
 
 /**
@@ -177,36 +338,36 @@ async function handleOrderConfirmation(agent) {
   try {
 
     // Retrieve context containing the order to confirm
-    const context = agent.getContext(contextName);
+    const context = agent.context.get(contextName);
     
     // If no valid context/order found, notify user and clear context
     if (!context || !context.parameters?.orderToConfirm) {
       agent.add("Desculpe, parece que perdi o pedido");
       
-      agent.setContext({ name: contextName, lifespan: 0 });
+      agent.context.set({ name: contextName, lifespan: 0 });
       
       return;
     }
 
-    // Get the user's confirmation action from their message (expecting first word)
+    // Get the user's confirmation action from their message
     const action = agent.parameters.confirmationMessage[0];
 
     // Handle cancellation request
     if (action === 'Cancelar') {
       agent.add("O pedido foi cancelado com sucesso. Se precisar de algo, estou à disposição.");
       
-      agent.setContext({ name: contextName, lifespan: 0 });
+      agent.context.set({ name: contextName, lifespan: 0 });
       
       return;
     }
 
     // Handle request to edit the order
     if (action === 'Editar') {
-      agent.add("Sem problemas! O que você gostaria de alterar? \n\n- *Data de entrega*\n- *Itens*\n- *Método de Pagamento*\n- *Endereço*");
+      agent.add("Sem problemas! O que você gostaria de alterar? \n\n1. *Data de entrega*\n2. *Itens*\n3. *Método de Pagamento*\n4. *Endereço*");
       
-      agent.setContext({ name: contextName, lifespan: 0 });
+      agent.context.set({ name: contextName, lifespan: 0 });
 
-      agent.setContext({
+      agent.context.set({
         name: editContext,
         lifespan: 5,
         parameters: {
@@ -223,19 +384,23 @@ async function handleOrderConfirmation(agent) {
       // Parse the order object
       const order = context.parameters.orderToConfirm;
 
+      // Converting strings to Date Object
+      order.deliveryDate = new Date(order.deliveryDate);
+      order.creationDate = new Date(order.creationDate);
+
       // Save order to database and get reference
       const docRef = await createAndSaveOrder(order);
 
-      agent.add(`Seu pedido foi confirmado e salvo com sucesso! O ID do pedido é ${docRef.id}.`);
+      agent.add(`Seu pedido foi confirmado e salvo com sucesso! \nO ID do pedido é ${docRef.id}.`);
       // Clear confirmation context
-      agent.setContext({ name: contextName, lifespan: 0 });
+      agent.context.set({ name: contextName, lifespan: 0 });
       return;
     }
 
     // If user input doesn't match expected actions
-    agent.add("Desculpe, não entendi sua escolha. Por favor, responda com *Confirmar*, *Editar* ou *Cancelar*.");
+    agent.add("Desculpe, não entendi sua escolha. Por favor, responda com: \n\n1. *Confirmar*\n2. *Editar*\n3. *Cancelar*");
 
-    agent.setContext({
+    agent.context.set({
         name: contextName,
         lifespan: 5,
         parameters: {
@@ -249,11 +414,18 @@ async function handleOrderConfirmation(agent) {
     console.error("Error while processing order confirmation flow:", error);
     agent.add("Desculpe, ocorreu um problema ao processar sua solicitação.");
     // Clear context to avoid stuck state
-    agent.setContext({ name: contextName, lifespan: 0 });
+    agent.context.set({ name: contextName, lifespan: 0 });
   }
 }
 
+
 module.exports = {
   handleOrder,
-  handleOrderConfirmation
+  handleOrderConfirmation,
+  handleCaptureQuantity,
+  handleCaptureType,
+  handleWantsMoreItems,
+  handleDoneAddingItems,
+  handleCaptureDay,
+  handleCaptureMethod
 };

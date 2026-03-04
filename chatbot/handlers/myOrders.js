@@ -14,10 +14,9 @@ const { formatCurrency } = require('../utils/currencyUtils');
  */
 async function handleMyOrders(agent) {
   try {
-    // Retrieve the WhatsApp client ID from agent parameters.
-    // Fallback to a hard‑coded test ID until real parameter is wired.
-    const whatsappClientId = agent.parameters.whatsappClientId
-      || 'whatsapp:+15551234568';
+    // Retrieve the WhatsApp client ID from agent session.
+    const sessionPath = agent.session;
+    const whatsappClientId = sessionPath.split('/sessions/')[1];
 
     // If we still don’t have a client ID, abort and notify the user.
     if (!whatsappClientId) {
