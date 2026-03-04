@@ -54,9 +54,8 @@ class _MainScreenState extends State<MainScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              final navigator = Navigator.of(context);
-              await FirebaseAuth.instance.signOut();
-              navigator.pushReplacementNamed('/login');
+              await FirebaseAuth.instance.signOut(); // Sign out the user
+              Navigator.of(context).pushReplacementNamed('/login'); // Redirect to login screen
             },
           ),
         ],
@@ -68,28 +67,31 @@ class _MainScreenState extends State<MainScreen> {
       ),
 
       // Bottom navigation bar wrapped with rounded corners
-      bottomNavigationBar: ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20.0),
-          topRight: Radius.circular(20.0),
-        ),
+      bottomNavigationBar: Container(
 
-        child: BottomNavigationBar(
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20.0),
+            topRight: Radius.circular(20.0),
+          ),
 
-          items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-              icon: Icon(Icons.list_alt_rounded),
-              label: 'Pedidos',
-            ),
+          child: BottomNavigationBar(
 
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_suggest_rounded),
-              label: 'Valores',
-            ),
-          ],
+            items: const <BottomNavigationBarItem>[
+              BottomNavigationBarItem(
+                icon: Icon(Icons.list_alt_rounded),
+                label: 'Pedidos',
+              ),
 
-          currentIndex: _selectedIndex, // Currently selected tab
-          onTap: _onItemTapped,         // Function to call when tab is tapped
+              BottomNavigationBarItem(
+                icon: Icon(Icons.settings_suggest_rounded),
+                label: 'Valores',
+              ),
+            ],
+
+            currentIndex: _selectedIndex, // Currently selected tab
+            onTap: _onItemTapped,         // Function to call when tab is tapped
+          ),
         ),
       ),
     );

@@ -441,7 +441,8 @@ class _ValuesScreenState extends State<ValuesScreen> {
                     keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*,?\d{0,2}')),
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*[,]?\d{0,2}')),
                     ],
 
                     textInputAction: TextInputAction.next,
@@ -470,7 +471,8 @@ class _ValuesScreenState extends State<ValuesScreen> {
                     keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*,?\d{0,2}')),
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*[,]?\d{0,2}')),
                     ],
 
                     textInputAction: TextInputAction.next,
@@ -497,7 +499,7 @@ class _ValuesScreenState extends State<ValuesScreen> {
                     label: 'Novas Dúzias p/ Frete Grátis',
 
                     currentValueText: _currentFreeShipping != null
-                        ? 'Atual: $_currentFreeShipping dúzias'
+                        ? 'Atual: ${_currentFreeShipping} dúzias'
                         : 'Atual: Não definido',
 
                     keyboardType: TextInputType.number,
@@ -530,7 +532,7 @@ class _ValuesScreenState extends State<ValuesScreen> {
 
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d{0,7}(,\d{0,2})?$')),
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d{0,7}([,]\d{0,2})?$')),
                     ],
 
                     textInputAction: TextInputAction.done,
@@ -570,7 +572,7 @@ class _ValuesScreenState extends State<ValuesScreen> {
         // Show semi-transparent overlay with spinner when loading
         if (_isLoading)
           Container(
-            color: Colors.black.withAlpha(77),
+            color: Colors.black.withOpacity(0.3),
             child: const Center(
               child: CircularProgressIndicator(),
             ),
