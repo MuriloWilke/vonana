@@ -5,28 +5,39 @@ const express = require('express')
 const {WebhookClient} = require('dialogflow-fulfillment');
 
 // Importing the intent handler functions from their respective files
+const { handleWelcomeMenuChoice } = require('./handlers/welcomeHandlers');
+
 const { handleMyOrders } = require('./handlers/myOrders');
 
-const { handleCancelOrderRequest, 
+const { 
+  handleCancelOrderRequest, 
   handleCancelOrderSelection 
 } = require('./handlers/cancelOrders');
 
-const { handleAddress } = require('./handlers/addressHandlers')
+const { 
+  handleAddress,
+  handleAddressCompletionNew,
+  handleCaptureAddressNumber
+ } = require('./handlers/addressHandlers')
 
-const { handleOrder,
+const { 
+  handleOrder,
   handleOrderConfirmation,
+  handleCaptureQuantity,
+  handleCaptureType,
+  handleWantsMoreItems,
+  handleDoneAddingItems,
+  handleCaptureDay,
+  handleCaptureMethod
 } = require('./handlers/orders')
 
-const { handleCorrectedDozens, 
-  handleCorrectedEggType, 
-  handleCorrectedDeliveryDay, 
-  handleCorrectedMethod, 
-} = require('./handlers/orderCorrections')
-
-const { handleEditAction,
+const { 
+  handleEditAction,
   handleEditOrderChangeDate,
   handleEditOrderChangePaymentMethod,
   handleEditOrderChangeAddress,
+  handleAddressCompletionEdit,
+  handleCaptureEditAddressNumber,
   handleChooseItemToEdit,
   handleOrderItemAction,
   handleEditItemQuantity,
@@ -56,14 +67,19 @@ function webhookEntry(agent) {
   let intentMap = new Map();
 
   // Mapping order-related intents
+  intentMap.set('Welcome - Numeric Choice', handleWelcomeMenuChoice);
+
   intentMap.set('Order Intent', handleOrder);
+  intentMap.set('Order - Capture Quantity', handleCaptureQuantity);
+  intentMap.set('Order - Capture Type', handleCaptureType);
+  intentMap.set('Order - Add More Items - yes', handleWantsMoreItems);
+  intentMap.set('Order - Add More Items - no', handleDoneAddingItems);
+  intentMap.set('Order - Capture Day', handleCaptureDay);
+  intentMap.set('Order - Capture Method', handleCaptureMethod);
   
   intentMap.set('Capture Address Intent', handleAddress);
-  
-  intentMap.set('Capture Corrected Dozens Mixed Order Intent', handleCorrectedDozens);
-  intentMap.set('Capture Corrected Egg Type Mixed Order Intent', handleCorrectedEggType);
-  intentMap.set('Capture Corrected Preferred Delivery Day Order Intent', handleCorrectedDeliveryDay);
-  intentMap.set('Capture Corrected Method Intent', handleCorrectedMethod);
+  intentMap.set('Order - New - Address - Provide Completion', handleAddressCompletionNew);
+  intentMap.set('Capture Address Number - New Order', handleCaptureAddressNumber);
   
   intentMap.set('Order Confirmation Intent', handleOrderConfirmation);
 
@@ -71,6 +87,8 @@ function webhookEntry(agent) {
   intentMap.set('Order Edit Intent - date', handleEditOrderChangeDate);
   intentMap.set('Order Edit Intent - method', handleEditOrderChangePaymentMethod);
   intentMap.set('Order Edit Intent - address', handleEditOrderChangeAddress);
+  intentMap.set('Order - Edit - Address - Provide Completion', handleAddressCompletionEdit);
+  intentMap.set('Capture Address Number - Edit Order', handleCaptureEditAddressNumber);
   intentMap.set('Order Edit Intent - item', handleChooseItemToEdit);
 
   intentMap.set('Order Edit Item Intent', handleOrderItemAction);

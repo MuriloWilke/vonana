@@ -1,5 +1,5 @@
 {
-  "name": "dialogflowFirebaseFulfillment",
+  "name": "dialogflow-fulfillment",
   "version": "0.0.1",
   "description": "Dialogflow webhook fulfillment for Cloud Run",
   "main": "server.js",
@@ -10,6 +10,8 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "axios": "^1.12.2",
+    "date-fns-tz": "^3.2.0",
     "dialogflow-fulfillment": "^0.6.1",
     "express": "^4.21.2",
     "firebase-admin": "^12.1.0"
