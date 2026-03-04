@@ -1,7 +1,6 @@
 'use strict';
 
 const { buildOrderConfirmationMessage } = require('../utils/messageUtils');
-const { interpretFinalMethod } = require('../utils/paymentUtils')
 const { getOrderConfiguration } = require('./configService');
 
 const db = require('../firestore/firestore');
@@ -16,7 +15,9 @@ async function createAndSaveOrder(orderDetails) {
     console.error('Invalid order details:', orderDetails);
     throw new Error('Invalid order data.');
   }
+
   const ref = await db.collection('orders').add(orderDetails);
+
   return ref;
 }
 
@@ -24,6 +25,7 @@ async function createAndSaveOrder(orderDetails) {
  * Drives the main “calculate + persist” flow for an order.
  */
 async function processOrderFlow(agent, whatsappClientId, orderParams) {
+  
   // 1) load pricing rules
   const config = await getOrderConfiguration(db);
   if (!config) {
@@ -62,13 +64,13 @@ async function processOrderFlow(agent, whatsappClientId, orderParams) {
     deliveryStatus: 'Pendente',
     items,
     totalDozens: dozenCount,
-    paymentMethod: interpretFinalMethod(orderParams.method),
+    paymentMethod: orderParams.paymentMethod,
     shippingAddress: orderParams.shippingAddress,
     total,
     shippingCost
   };
 
-  agent.setContext({
+  agent.context.set({
     name: 'awaiting_order_confirmation',
     lifespan: 2,
     parameters: {
@@ -94,7 +96,7 @@ async function processOrderFlow(agent, whatsappClientId, orderParams) {
  */
 async function continueOrderAfterValidation(agent, whatsappClientId, validatedOrderParams) {
   try {
-    const { dozensArray, method, eggTypeArray, deliveryDate } = validatedOrderParams;
+    const { dozensArray, paymentMethod, eggTypeArray, deliveryDate } = validatedOrderParams;
 
     // Collecting the client if it exists, if not preparing to create one
     const clientDocRef = db.collection('clients').doc(whatsappClientId);
@@ -105,26 +107,26 @@ async function continueOrderAfterValidation(agent, whatsappClientId, validatedOr
     if (!savedAddress) {
 
       // Set unified address context with original params
-      agent.setContext({
+      agent.context.set({
         name: 'awaiting_address_for_order',
         lifespan: 2,
         parameters: {
           whatsappClientId,
           originalOrderDozensArray: dozensArray,
-          originalOrderMethod: method,
+          originalOrderPaymentMethod: paymentMethod,
           originalOrderEggTypeArray: eggTypeArray,
           originalOrderDeliveryDate: deliveryDate,
         }
       });
 
-      agent.add("Por favor, me informe seu endereço para entrega do pedido.");
+      agent.add("Por favor, me informe seu CEP ou endereço de entrega para o pedido.");
       return;
     }
 
     // Address exists, proceed with order
     const orderParams = {
       dozensArray,
-      method,
+      paymentMethod,
       eggTypeArray,
       shippingAddress: savedAddress,
       deliveryDate,
@@ -141,7 +143,6 @@ async function continueOrderAfterValidation(agent, whatsappClientId, validatedOr
 }
 
 module.exports = {
-  interpretFinalMethod,
   createAndSaveOrder,
   processOrderFlow,
   continueOrderAfterValidation
